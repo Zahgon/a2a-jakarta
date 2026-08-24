@@ -1,52 +1,70 @@
-<?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright The A2A Spring Authors
+  ~ SPDX-License-Identifier: Apache-2.0
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!--
+      Migrated from: examples/simple/server/pom.xml (org.wildfly.a2a:a2a-jakarta-example-simple-server)
+
+      PACKAGING
+        war  ->  jar. The Jakarta build produced a ROOT.war that the wildfly-maven-plugin
+        deployed into a provisioned WildFly server at context path "/". The Spring build
+        produces an executable jar with an embedded Tomcat, which serves at "/" by default
+        (server.servlet.context-path defaults to "/"), so the externally visible URLs are
+        unchanged: http://localhost:8080/
+
+      BUILD PLUGINS
+        org.wildfly.plugins:wildfly-maven-plugin  ->  spring-boot-maven-plugin (repackage)
+        The entire galleon provisioning block is DROPPED:
+          - <feature-pack> org.wildfly:wildfly-galleon-pack        (no app server to provision)
+          - <feature-pack> org.wildfly.grpc:wildfly-grpc-feature-pack (replaced by grpc-server-spring-boot-starter)
+          - <discover-provisioning-info/> + <add-on>grpc</add-on>  (no subsystem discovery)
+          - <galleon-option>jboss-fork-embedded</galleon-option>   (no embedded host controller)
+          - <stability-level>preview</stability-level>             (no WildFly stability levels)
+          - <name>ROOT.war</name> / <jboss-home>/<provisioning-dir>
+
+      DEPENDENCIES
+        jakarta.enterprise:jakarta.enterprise.cdi-api (provided)  ->  spring-boot-starter (spring-context)
+        jakarta.ws.rs:jakarta.ws.rs-api (provided)                ->  spring-boot-starter-web
+        The CDI/inject exclusions on a2a-java-sdk-server-common are retained for the same
+        reason as in the transport modules: the SDK's optional CDI API must not land on a
+        Spring classpath where nothing implements it.
+
+      PROFILES
+        The source declared three profiles (jsonrpc / grpc / rest), each of which both
+        selected a transport dependency AND switched wildfly.maven.plugin.phase from "none"
+        to "package" so the server was only provisioned on demand. Only the dependency half
+        survives; the provisioning half has no counterpart. "jsonrpc" is now
+        activeByDefault so that `mvn spring-boot:run` works with no flags - under Jakarta
+        the no-profile build deliberately produced a war with no server to deploy it to,
+        which is not a meaningful default for a self-contained executable jar.
+    -->
+
     <parent>
-        <groupId>org.wildfly.a2a</groupId>
-        <artifactId>a2a-jakarta-examples-parent</artifactId>
+        <groupId>org.a2a.spring</groupId>
+        <artifactId>a2a-spring-examples-parent</artifactId>
         <version>1.0.0.Final-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>a2a-jakarta-example-simple-server</artifactId>
-
-    <packaging>war</packaging>
-
-    <name>WildFly Extras - A2A Jakarta - Examples - Simple Server</name>
-    <description>Java SDK for the Agent2Agent Protocol (A2A) - SDK - Jakarta - Example - Simple</description>
-
-    <properties>
-        <!--
-            Property to ensure that the default build does not provision a WildFly server.
-            Each profile will set this to 'package' and further configure the plugin.
-        -->
-        <wildfly.maven.plugin.phase>none</wildfly.maven.plugin.phase>
-    </properties>
+    <artifactId>a2a-spring-example-simple-server</artifactId>
+    <packaging>jar</packaging>
+    <name>A2A Spring :: Examples :: Simple :: Server</name>
 
     <dependencies>
-        <!-- Dependencies needed to compile. 'provided' scope since they are provided by WildFly -->
         <dependency>
-            <groupId>jakarta.enterprise</groupId>
-            <artifactId>jakarta.enterprise.cdi-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.ws.rs</groupId>
-            <artifactId>jakarta.ws.rs-api</artifactId>
-            <scope>provided</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!--
-        The core a2a-java server dependency. Default scope since it, and
-        a lot of its dependencies should be included in the war.  -->
         <dependency>
             <groupId>org.a2aproject.sdk</groupId>
             <artifactId>a2a-java-sdk-server-common</artifactId>
-
-            <!-- Exclude transitive dependencies provided by WildFly -->
             <exclusions>
                 <exclusion>
                     <groupId>jakarta.enterprise</groupId>
@@ -59,42 +77,20 @@
             </exclusions>
         </dependency>
     </dependencies>
+
     <build>
         <plugins>
-            <!--
-                WildFly specific plugin to provision a WildFly server with the functionality required to
-                run our .war file.
-                It deploys the war renamed to 'ROOT.war' so that it is deployed under the root context, i.e. under '/'.
-                By default, this will be under http://localhost:8080/.
-            -->
             <plugin>
-                <groupId>org.wildfly.plugins</groupId>
-                <artifactId>wildfly-maven-plugin</artifactId>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <feature-packs>
-                        <feature-pack>
-                            <groupId>org.wildfly</groupId>
-                            <artifactId>wildfly-galleon-pack</artifactId>
-                            <version>${version.wildfly}</version>
-                        </feature-pack>
-                    </feature-packs>
-                    <discover-provisioning-info/>
-                    <jboss-home>${jboss.home}</jboss-home>
-                    <name>ROOT.war</name>
-                    <provisioning-dir>${jboss.home}</provisioning-dir>
-                    <!-- Set stability level to preview for gRPC feature-pack -->
-                    <galleon-options>
-                        <jboss-fork-embedded>true</jboss-fork-embedded>
-                        <!--<stability-level>preview</stability-level>-->
-                    </galleon-options>
+                    <mainClass>org.a2a.spring.examples.simple.SimpleExampleApplication</mainClass>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>provisioning</id>
                         <goals>
-                            <goal>package</goal>
+                            <goal>repackage</goal>
                         </goals>
-                        <phase>${wildfly.maven.plugin.phase}</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -104,134 +100,53 @@
     <profiles>
         <profile>
             <id>jsonrpc</id>
-            <properties>
-                <!-- Enable provisioning of WildFly server. -->
-                <wildfly.maven.plugin.phase>package</wildfly.maven.plugin.phase>
-            </properties>
-
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <dependencies>
-                <!--
-                    Include the JSONRPC Jakarta server jars
-                -->
                 <dependency>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>a2a-jakarta-jsonrpc</artifactId>
+                    <groupId>org.a2a.spring</groupId>
+                    <artifactId>a2a-spring-jsonrpc</artifactId>
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>
         </profile>
-        <profile>
-            <id>grpc</id>
-            <properties>
-                <!-- Enable provisioning of WildFly server. -->
-                <wildfly.maven.plugin.phase>package</wildfly.maven.plugin.phase>
-            </properties>
 
-            <dependencies>
-                <!--
-                    Include the gRPC Jakarta server jars
-                -->
-                <dependency>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>a2a-jakarta-grpc</artifactId>
-                    <version>${project.version}</version>
-                    <!-- Exclude gRPC core libraries as they are provided by WildFly's gRPC feature-pack -->
-                    <exclusions>
-                        <exclusion>
-                            <groupId>io.grpc</groupId>
-                            <artifactId>*</artifactId>
-                        </exclusion>
-                        <exclusion>
-                            <groupId>com.google.protobuf</groupId>
-                            <artifactId>protobuf-java</artifactId>
-                        </exclusion>
-                    </exclusions>
-                </dependency>
-
-                <!--
-                   gRPC needs JSONRPC to get the agent card.
-                   This is likely to change in the future. So for now include the
-                   JSONRCP dependencies here.
-                -->
-                <dependency>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>a2a-jakarta-jsonrpc</artifactId>
-                    <version>${project.version}</version>
-                </dependency>
-            </dependencies>
-            <build>
-                <plugins>
-                    <plugin>
-                        <!-- Add additional configuration to provision a server with the gRPC feature-pack -->
-                        <groupId>org.wildfly.plugins</groupId>
-                        <artifactId>wildfly-maven-plugin</artifactId>
-                        <configuration>
-                            <feature-packs>
-                                <!--
-                                    Still include the main WildFly feature-pack, so we are not stuck
-                                    to the version used by the gRPC feature-pack
-                                -->
-                                <feature-pack>
-                                    <groupId>org.wildfly</groupId>
-                                    <artifactId>wildfly-galleon-pack</artifactId>
-                                    <version>${version.wildfly}</version>
-                                </feature-pack>
-                                <!-- Add the gRPC feature-pack -->
-                                <feature-pack>
-                                    <groupId>org.wildfly.grpc</groupId>
-                                    <artifactId>wildfly-grpc-feature-pack</artifactId>
-                                    <version>${version.wildfly.grpc}</version>
-                                </feature-pack>
-                            </feature-packs>
-                            <discover-provisioning-info>
-                                <add-ons>
-                                    <add-on>grpc</add-on>
-                                </add-ons>
-                            </discover-provisioning-info>
-                            <!-- Set stability level to preview for gRPC feature-pack -->
-                            <galleon-options>
-                                <jboss-fork-embedded>true</jboss-fork-embedded>
-                                <stability-level>preview</stability-level>
-                            </galleon-options>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>provisioning</id>
-                                <goals>
-                                    <goal>package</goal>
-                                </goals>
-                                <phase>${wildfly.maven.plugin.phase}</phase>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
         <profile>
             <id>rest</id>
-            <properties>
-                <!-- Enable provisioning of WildFly server. -->
-                <wildfly.maven.plugin.phase>package</wildfly.maven.plugin.phase>
-            </properties>
-
             <dependencies>
-                <!--
-                    Include the HTTP+JSON/REST Jakarta server jars
-                -->
                 <dependency>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>a2a-jakarta-rest</artifactId>
+                    <groupId>org.a2a.spring</groupId>
+                    <artifactId>a2a-spring-rest</artifactId>
                     <version>${project.version}</version>
                 </dependency>
+                <!-- REST needs JSONRPC to serve the agent card, as in the source build. -->
+                <dependency>
+                    <groupId>org.a2a.spring</groupId>
+                    <artifactId>a2a-spring-jsonrpc</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
 
+        <profile>
+            <id>grpc</id>
+            <dependencies>
                 <!--
-                   gRPC needs JSONRPC to get the agent card.
-                   This is likely to change in the future. So for now include the
-                   JSONRCP dependencies here.
+                  The source excluded io.grpc:* and com.google.protobuf:protobuf-java here
+                  because the WildFly gRPC feature-pack supplied them as server modules.
+                  Spring Boot has no such provider, so the exclusions are REMOVED and the
+                  grpc-server-spring-boot-starter brings the runtime in transitively.
                 -->
                 <dependency>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>a2a-jakarta-jsonrpc</artifactId>
+                    <groupId>org.a2a.spring</groupId>
+                    <artifactId>a2a-spring-grpc</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+                <!-- gRPC needs JSONRPC to get the agent card. -->
+                <dependency>
+                    <groupId>org.a2a.spring</groupId>
+                    <artifactId>a2a-spring-jsonrpc</artifactId>
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>

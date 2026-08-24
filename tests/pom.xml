@@ -1,31 +1,229 @@
-<?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright The A2A Spring Authors
+  ~ SPDX-License-Identifier: Apache-2.0
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!--
+      Migrated from: tests/pom.xml (org.wildfly.a2a:a2a-jakarta-tests-parent)
+
+      STRUCTURE
+        The source was an aggregator over six Arquillian submodules - common, jsonrpc,
+        grpc, rest, compat-0.3 and multiversion - each of which built a ShrinkWrap
+        WebArchive, provisioned a WildFly instance via the glow/wildfly maven plugins, and
+        ran @RunWith(Arquillian.class) tests in-container.
+
+        None of that machinery has a Spring counterpart, so the six modules collapse into
+        this single flat module. The tests it holds use
+        @SpringBootTest(webEnvironment = RANDOM_PORT), which boots the real transport
+        controllers, filters and SDK handlers on an embedded Tomcat - the same
+        end-to-end surface Arquillian covered, without an external container.
+
+      TESTING STACK
+        org.jboss.arquillian:arquillian-junit-container   ->  spring-boot-starter-test
+        org.wildfly.arquillian:wildfly-arquillian-container-*  ->  (dropped: embedded Tomcat)
+        org.jboss.shrinkwrap:shrinkwrap-api / resolvers   ->  (dropped: no archive assembly)
+        ElytronSetupTask + auth-microprofile-config.properties  ->  Spring Security
+                                                                    in-memory users
+        io.rest-assured:rest-assured                      ->  retained, pointed at
+                                                              the RANDOM_PORT
+        org.junit.jupiter:junit-jupiter / mockito         ->  bundled by
+                                                              spring-boot-starter-test
+
+      This module is not published (maven.deploy.skip), matching the source, which also
+      never released its test modules.
+    -->
+
     <parent>
-        <groupId>org.wildfly.a2a</groupId>
-        <artifactId>a2a-jakarta-parent</artifactId>
+        <groupId>org.a2a.spring</groupId>
+        <artifactId>a2a-spring-parent</artifactId>
         <version>1.0.0.Final-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>a2a-jakarta-tests-parent</artifactId>
-
-    <packaging>pom</packaging>
-
-    <name>WildFly Extras - A2A Jakarta - Tests - Parent</name>
-    <description>Java SDK for the Agent2Agent Protocol (A2A) - SDK - Jakarta - Tests - Parent</description>
+    <artifactId>a2a-spring-tests</artifactId>
+    <packaging>jar</packaging>
+    <name>A2A Spring :: Tests</name>
 
     <properties>
-        <central.skipPublishing>true</central.skipPublishing>
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
-    <modules>
-        <module>common</module>
-        <module>jsonrpc</module>
-        <module>grpc</module>
-        <module>rest</module>
-        <module>compat-0.3</module>
-        <module>multiversion</module>
-    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.a2a.spring</groupId>
+            <artifactId>a2a-spring-http-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.a2a.spring</groupId>
+            <artifactId>a2a-spring-jsonrpc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.a2a.spring</groupId>
+            <artifactId>a2a-spring-rest</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.a2a.spring</groupId>
+            <artifactId>a2a-spring-compat-0.3-jsonrpc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.a2a.spring</groupId>
+            <artifactId>a2a-spring-compat-0.3-rest</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!--
+          The gRPC transports. The source kept these in tests/grpc and tests/compat-0.3/grpc,
+          which provisioned a WildFly with the gRPC subsystem enabled; here the net.devh starter
+          the modules already depend on serves them from the same Spring context.
+        -->
+        <dependency>
+            <groupId>org.a2a.spring</groupId>
+            <artifactId>a2a-spring-grpc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.a2a.spring</groupId>
+            <artifactId>a2a-spring-compat-0.3-grpc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+          The SDK's shared server test-kit. The Arquillian modules of the source pulled
+          exactly these: the abstract suites (AbstractA2AServerTest and friends) live in
+          the test-jar, the producers and TestUtilsBean in the main jar. Porting the
+          suites means re-hosting these same classes on Spring rather than rewriting the
+          assertions, so the wire contract they pin is the one the source pinned.
+        -->
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-tests-server-common</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-tests-server-common</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+          Replaces the source's Elytron setup. The Arquillian suites secured their deployments
+          with an ElytronSetupTask, a web-auth.xml BASIC-auth constraint and a jboss-web-auth.xml
+          security domain, all applied to a running WildFly. Spring Security expresses the same
+          constraint in a SecurityFilterChain; see SuiteSecurityConfiguration.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+          The v0.3 half of the same test-kit: AbstractA2AServerServerTest_v0_3 and the
+          AgentCardProducer_v0_3 / TestUtilsBean_v0_3 producers the compatibility suites need.
+        -->
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-compat-0.3-server-conversion</artifactId>
+            <version>${version.sdk}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-compat-0.3-server-conversion</artifactId>
+            <version>${version.sdk}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-compat-0.3-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-compat-0.3-client-transport-jsonrpc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-compat-0.3-client-transport-rest</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Client transports the abstract suites drive the server through. -->
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-jsonrpc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-rest</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-grpc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-compat-0.3-client-transport-grpc</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Aggregate report. The integration tests in this module exercise classes
+                 that live in the other modules, which a per-module report goal cannot
+                 attribute. report-aggregate walks the dependency modules and merges
+                 their coverage with the execution data produced here. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>jacoco-aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/site/jacoco-aggregate</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

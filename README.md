@@ -1,161 +1,137 @@
-# A2A Java SDK for Jakarta Servers
+# a2a-spring
 
-This is the integration of the [A2A Java SDK](https://github.com/a2aproject/a2a-java) for use in Jakarta servers. It is currently tested on **WildFly**, but it should be usable in other compliant Jakarta servers such as Tomcat, Jetty, and OpenLiberty. For Quarkus, use the reference implementation in the [A2A Java SDK](https://github.com/a2aproject/a2a-java) project.
+Spring Boot integration layer for the [A2A Java SDK](https://github.com/a2aproject/a2a-java)
+(`org.a2aproject.sdk:1.2.0.Final`).
 
-This implementation is aligned with **A2A Protocol Specification 1.0** and uses **A2A Java SDK 1.0.0.Final**.
+This is a migration of `a2a-jakarta` from Jakarta EE / WildFly to Spring Boot 3.5. It does **not**
+implement the A2A protocol — the SDK does that. This project supplies the web plumbing: version
+routing filters, transport controllers, and the Spring bean wiring that replaces CDI. See
+[MIGRATION.md](MIGRATION.md) for the full mapping.
 
-For more information about the A2A protocol, see [here](https://github.com/a2aproject/A2A).
+## Requirements
 
-## Getting Started
+- JDK 17+
+- Maven 3.9+
 
-To use the A2A Java SDK in your application, you will need to package it as a `.war` file. This can be done with your standard build tool.
-
-### Packaging your application
-
-The key to enabling A2A in your Java application is to correctly package it. Here are the general steps you need to follow:
-
-1.  **Create a standard `.war` archive:** Your project should be configured to produce a `.war` file. This is a standard format for web applications in Java and is supported by all major runtimes.
-
-2.  **Provide implementations for `AgentExecutor` and `AgentCard`:** The A2A SDK requires you to provide your own implementations of the `AgentExecutor` and `AgentCard` interfaces. These are the core components that define the behavior of your agent. You can find more information about them in the [A2A Java SDK documentation](https://github.com/a2aproject/a2a-java).
-
-3.  **Manage Dependencies:** Your `.war` file must contain all necessary libraries in the `/WEB-INF/lib` directory. However, some libraries may already be provided by the application server itself.
-
-    * **Using the BOM:** To simplify dependency management, you can use the `a2a-java-sdk-bom` (Bill of Materials) which manages versions of all A2A SDK dependencies. Add this to your `<dependencyManagement>` section:
-      ```xml
-      <dependency>
-          <groupId>org.a2aproject.sdk</groupId>
-          <artifactId>a2a-java-sdk-bom</artifactId>
-          <version>${version.sdk}</version>
-          <type>pom</type>
-          <scope>import</scope>
-      </dependency>
-      ```
-
-    * **Bundling Dependencies:** For libraries not provided by the server, you must bundle them inside your `.war`.
-
-    * **Provided Dependencies:** To avoid conflicts and reduce the size of your archive, you should exclude libraries that your target runtime already provides. For example, **WildFly** includes the **Jackson** libraries, so you do not need to package them in your application. Check the documentation for your specific runtime (Tomcat, Jetty, OpenLiberty, etc.) to see which dependencies are provided.
-
-### Example
-
-The [tck/pom.xml](./tck/pom.xml) is a good example of how to package an A2A application. Your application can support JSON-RPC, gRPC, REST, or any combination of these. In this case, the application is deployed in WildFly, so the dependencies included in the `.war` are tailored to what WildFly provides.
-
-In the `tck/pom.xml` we enable JSON-RPC, gRPC, and REST, and have the following dependencies:
-
-* `org.wildfly.a2a:a2a-jakarta-jsonrpc` - this is the dependency for **JSON-RPC** support. It transitively pulls in all the dependencies from the A2A Java SDK project.
-    * Since some of these dependencies are provided by WildFly already, we exclude those so they do not become part of the `.war`, in order to avoid inconsistencies.
-* `org.wildfly.a2a:a2a-jakarta-grpc` - this is the dependency for **gRPC** support.
-    * We exclude the gRPC core libraries (`io.grpc` and `com.google.protobuf:protobuf-java`). This is because when deploying to WildFly with gRPC support, the server is provisioned with the WildFly gRPC feature-pack, which already provides these libraries. Including them in the `.war` would lead to conflicts.
-* `org.wildfly.a2a:a2a-jakarta-rest` - this is the dependency for **REST** (HTTP+JSON) support.
-* `jakarta.ws.rs:jakarta.ws.rs-api` - this is not part of the dependencies brought in via the A2A dependencies but is needed to compile the TCK module. Since it is provided by WildFly, we make the scope `provided` so it is not included in the `.war`.
-* `org.a2aproject.sdk:a2a-java-sdk-tck-sut` - this is the application, which contains the `AgentExecutor` and `AgentCard` implementations for the TCK. In your case, they will most likely be implemented in the project you use to create the `.war`.
-    * In this case we exclude all transitive dependencies, since we are doing the main dependency management via the transport-specific dependencies above.
-
-If you are deploying to WildFly and want to use gRPC, you will also need to provision the server with the gRPC feature-pack. You can see how this is done in the `wildfly-maven-plugin` configuration in the `tck/pom.xml`. Since the gRPC subsystem and feature-pack are currently at the `preview` stability level, you will need to start the server with the `--stability=preview` argument.
-
-There are also some [examples](./examples/README.md) that show how to package an application selecting each transport. 
-
-## v0.3 Protocol Compatibility
-
-This project includes support for the A2A Protocol v0.3, both as a standalone deployment and as a multiversion deployment alongside v1.0. The v0.3 compatibility layer converts incoming v0.3 requests to v1.0 format and delegates to a single `AgentExecutor`, so you do not need a separate executor for v0.3 support.
-
-### Standalone v0.3
-
-To deploy an application that only supports v0.3, use the `compat-0.3` modules instead of the v1.0 ones. The [compat-0.3/tck/pom.xml](./compat-0.3/tck/pom.xml) is a good example. The dependencies follow the same pattern as v1.0, but with the `compat-0.3` prefix:
-
-* `org.wildfly.a2a:a2a-jakarta-compat-0.3-jsonrpc` for **JSON-RPC**
-* `org.wildfly.a2a:a2a-jakarta-compat-0.3-grpc` for **gRPC** (same exclusions as v1.0)
-* `org.wildfly.a2a:a2a-jakarta-compat-0.3-rest` for **REST**
-
-Your application must provide an `AgentExecutor` and an `AgentCard_v0_3` (instead of `AgentCard`).
-
-### Multiversion (v0.3 + v1.0)
-
-To support both protocol versions in the same deployment, activate the `multi-version` Maven profile. Both the `tck/pom.xml` and `compat-0.3/tck/pom.xml` have a `multi-version` profile that demonstrates this.
-
-The multiversion setup simply adds the other version's modules to the classpath alongside the primary version's modules. CDI-based version routing filters in `http-common` automatically detect which protocol versions are deployed and handle dispatching requests to the correct version's resources. No special multiversion modules are needed.
-
-The approach differs depending on which version is your primary:
-
-* **Primary v1.0** (see `tck/pom.xml` `multi-version` profile): Your application provides a v1.0 `AgentCard` as the primary agent card. Add the `compat-0.3` modules (`a2a-jakarta-compat-0.3-jsonrpc`, `a2a-jakarta-compat-0.3-rest`, `a2a-jakarta-compat-0.3-grpc`) as additional dependencies. You must also provide a minimal `AgentCard_v0_3` to satisfy CDI injection for the v0.3 handlers — see [StubAgentCardProducer_v0_3.java](./tck/src/multi-version/java/org/wildfly/a2a/jakarta/tck/StubAgentCardProducer_v0_3.java) for an example.
-* **Primary v0.3** (see `compat-0.3/tck/pom.xml` `multi-version` profile): Your application provides a v0.3 `AgentCard_v0_3` as the primary agent card. Add the v1.0 modules (`a2a-jakarta-jsonrpc`, `a2a-jakarta-rest`, `a2a-jakarta-grpc`) as additional dependencies. You must also produce a v1.0 `AgentCard` — this can be derived from the v0.3 card. See [DerivedAgentCardProducer.java](./compat-0.3/tck/src/multi-version/java/org/wildfly/a2a/jakarta/compat03/tck/DerivedAgentCardProducer.java) for an example that converts `AgentCard_v0_3` to `AgentCard`.
-
-In both cases, only a single `AgentExecutor` is needed — the v0.3 conversion layer handles protocol translation automatically.
-
-### Agent Card Compatibility
-
-When serving both protocol versions, the v1.0 `AgentCard` is the one served to clients. To ensure v0.3 clients can parse it, the card must include backward-compatibility fields such as `url`, `preferredTransport`, and `additionalInterfaces`. You can set these manually on the `AgentCard.Builder`, or use the `Compat03Fields.addCompat03FieldsIfAvailable()` utility to add them — see [DerivedAgentCardProducer.java](./compat-0.3/tck/src/multi-version/java/org/wildfly/a2a/jakarta/compat03/tck/DerivedAgentCardProducer.java) for an example.
-
-For full details on these fields, see the [Making the v1.0 Agent Card Compatible with v0.3 Clients](https://github.com/a2aproject/a2a-java#making-the-v10-agent-card-compatible-with-v03-clients) section of the A2A Java SDK README.
-
-## Running the TCK
-
-The project includes a TCK (Technology Compatibility Kit) that you can use to test the integration with WildFly. 
-
-To run the TCK, build the full project
-```bash
-mvn clean install -DskipTests
-```
-
-You now have a server provisioned with the `.war` deployed in the `tck/target/wildfly` folder.
-
-We can start the server using the following command:
+## Build
 
 ```bash
- SUT_JSONRPC_URL=http://localhost:8080 SUT_GRPC_URL=http://localhost:9555 SUT_REST_URL=http://localhost:8080 tck/target/wildfly/bin/standalone.sh --stability=preview
+mvn clean install
 ```
 
-`--stability=preview` is needed since the TCK server is provisioned with the gRPC subsystem, which is currently at the `preview` stability level.
+13 modules, 64 tests.
 
-The `SUT_JSONRPC_URL`, `SUT_GRPC_URL`, and `SUT_REST_URL` are used by the TCK server's `AgentCardProducer` to specify the transports supported by the server agent.
+## Modules
 
-Once the server is up and running, run the TCK with the instructions in [a2aproject/a2a-tck](https://github.com/a2aproject/a2a-tck).
+| Module | Artifact | Purpose |
+|---|---|---|
+| `http-common` | `a2a-spring-http-common` | Version routing filters, SSE subscriber, CDI→Spring bean wiring |
+| `impl/jsonrpc` | `a2a-spring-jsonrpc` | JSON-RPC transport (protocol v1.0) |
+| `impl/rest` | `a2a-spring-rest` | HTTP+JSON/REST transport (v1.0) |
+| `impl/grpc` | `a2a-spring-grpc` | gRPC transport (v1.0) |
+| `compat-0.3/{jsonrpc,rest,grpc}` | `a2a-spring-compat-0.3-*` | Protocol v0.3 compatibility |
+| `examples/simple/{server,client}` | `a2a-spring-example-simple-*` | Runnable example |
+| `tests` | `a2a-spring-tests` | Integration tests |
 
-**Note:** This implementation targets **A2A Protocol Specification 1.0.0**. Make sure you check out the corresponding 1.0.0 tag of `a2aproject/a2a-tck`.
+## Running the example server
 
-Be sure to set `TCK_STREAMING_TIMEOUT=4.0` when running the TCK to ensure the tests wait long enough to receive the events for streaming methods.
-
-Then to run the TCK, run the following command from the clone of [a2aproject/a2a-tck](https://github.com/a2aproject/a2a-tck):
-
-```shell
-./run_tck.py --sut-url http://localhost:8080 --category all --transports jsonrpc,grpc,rest --compliance-report report.json
-```
-
-## Running the v0.3 TCK
-
-Build the project:
-```bash
-mvn clean install -DskipTests
-```
-
-Start the v0.3 TCK server:
-```bash
-SUT_JSONRPC_URL=http://localhost:8080 SUT_GRPC_URL=http://localhost:9555 SUT_REST_URL=http://localhost:8080 compat-0.3/tck/target/wildfly/bin/standalone.sh --stability=preview
-```
-
-Then run the v0.3 TCK suite from your clone of [a2aproject/a2a-tck](https://github.com/a2aproject/a2a-tck), using the appropriate tag/branch for v0.3.
-
-## Running the Multiversion TCK
-
-The multiversion build enables both v0.3 and v1.0 protocol support in the same server. Build with the `multi-version` profile:
+The server module has one profile per transport. `jsonrpc` is active by default:
 
 ```bash
-mvn clean install -DskipTests -Pmulti-version
+mvn -pl examples/simple/server -am install                  # JSON-RPC (default)
+mvn -pl examples/simple/server -am install -P rest          # REST + JSON-RPC
+mvn -pl examples/simple/server -am install -P grpc          # gRPC + JSON-RPC
+
+java -jar examples/simple/server/target/a2a-spring-example-simple-server-1.0.0.Final-SNAPSHOT.jar
 ```
 
-This produces two multiversion WAR deployments:
+Listens on `http://localhost:8080`.
 
-### v0.3 TCK against multiversion server
-
-Start the multiversion server from `compat-0.3/tck/`:
 ```bash
-SUT_JSONRPC_URL=http://localhost:8080 SUT_GRPC_URL=http://localhost:9555 SUT_REST_URL=http://localhost:8080 compat-0.3/tck/target/wildfly/bin/standalone.sh --stability=preview
+# Agent card
+curl http://localhost:8080/.well-known/agent-card.json
+
+# Send a message
+curl -X POST http://localhost:8080/ \
+  -H 'Content-Type: application/json' \
+  -H 'A2A-Version: 1.0' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"SendMessage","params":{"message":
+       {"messageId":"m-1","role":"ROLE_USER","parts":[{"text":"World"}]}}}'
 ```
-Then run the **v0.3 TCK** suite against it.
 
-### v1.0 TCK against multiversion server
+The second call returns a completed task whose artifact contains `Hello World`.
 
-Start the multiversion server from `tck/`:
+> The `A2A-Version` header is required when more than one protocol version is on the classpath, and
+> the SDK's own validator defaults to `0.3` when it is absent. Send `A2A-Version: 1.0` for v1.0 agents.
+
+## Running the example client
+
 ```bash
-SUT_JSONRPC_URL=http://localhost:8080 SUT_GRPC_URL=http://localhost:9555 SUT_REST_URL=http://localhost:8080 tck/target/wildfly/bin/standalone.sh --stability=preview
+mvn -pl examples/simple/client exec:java -P run-jsonrpc     # or run-rest / run-grpc
 ```
-Then run the **v1.0 TCK** suite against it.
+
+## Using it in your own application
+
+Add the transport you want:
+
+```xml
+<dependency>
+  <groupId>org.a2a.spring</groupId>
+  <artifactId>a2a-spring-jsonrpc</artifactId>
+  <version>1.0.0.Final-SNAPSHOT</version>
+</dependency>
+```
+
+Then supply two beans — an agent card named `publicAgentCard`, and an `AgentExecutor`. Everything
+else (task store, queue manager, event bus, request handler, transport handlers) is auto-configured
+and every bean is `@ConditionalOnMissingBean`, so you can override any of it.
+
+```java
+@SpringBootApplication
+@ComponentScan(basePackages = {"com.example", "org.a2a.spring"}, excludeFilters = {
+    @ComponentScan.Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
+    @ComponentScan.Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class)
+})
+public class MyAgentApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(MyAgentApplication.class, args);
+    }
+
+    @Bean("publicAgentCard")
+    public AgentCard agentCard() { /* ... */ }
+
+    @Bean
+    public AgentExecutor agentExecutor() { /* ... */ }
+}
+```
+
+> **If you override `@ComponentScan`, keep those two `CUSTOM` filters.** `@SpringBootApplication`
+> declares them by default, and declaring your own `@ComponentScan` *replaces* them. Without
+> `AutoConfigurationExcludeFilter` the auto-configuration classes get component-scanned as ordinary
+> `@Configuration` classes and are evaluated before your own `@Bean` methods are registered — every
+> `@ConditionalOnMissingBean` then fails and the transport handlers are never created.
+
+Scanning `org.a2a.spring` is only needed because the transport `@RestController`s live in that
+package. The auto-configurations are picked up from `AutoConfiguration.imports` regardless.
+
+## Configuration
+
+| Property | Default | Meaning |
+|---|---|---|
+| `a2a.executor.core-pool-size` | 8 | Async executor core threads |
+| `a2a.executor.max-pool-size` | 64 | Async executor max threads |
+| `a2a.executor.queue-capacity` | 1024 | Async executor queue depth |
+| `a2a.executor.thread-name-prefix` | `a2a-async-` | Thread name prefix |
+| `a2a.executor.await-termination-seconds` | 30 | Shutdown grace period |
+
+## Protocol versions
+
+With both v1.0 and v0.3 modules on the classpath, requests are routed by the `A2A-Version` header;
+v0.3 is the default when the header is absent. Internally each version is served from its own path
+prefix (`/a2a_jsonrpc_v1.0`, `/a2a_rest_v0.3`, …) and the routing filters rewrite public URLs onto
+those prefixes. Clients never see the internal paths.
+
+## License
+
+Apache-2.0.

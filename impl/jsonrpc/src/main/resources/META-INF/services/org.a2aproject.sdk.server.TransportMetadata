@@ -1,1 +1,1 @@
-org.wildfly.a2a.jakarta.jsonrpc.WildFlyJSONRPCTransportMetadata
+org.a2a.spring.jsonrpc.SpringJSONRPCTransportMetadata

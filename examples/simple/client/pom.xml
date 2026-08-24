@@ -1,30 +1,37 @@
-<?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright The A2A Spring Authors
+  ~ SPDX-License-Identifier: Apache-2.0
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!--
+      Migrated from: examples/simple/client/pom.xml (org.wildfly.a2a:a2a-jakarta-example-simple-client)
+
+      This module had NO Jakarta EE coupling: it is a plain main() that drives the A2A
+      client SDK over each transport. Dependencies, the exec-maven-plugin configuration
+      and the three run-* profiles are carried over unchanged apart from the groupId,
+      artifactId and the main class package (org.wildfly.a2a.jakarta.examples.simple.client
+      -> org.a2a.spring.examples.simple.client).
+
+      slf4j-simple is kept rather than swapped for spring-boot-starter-logging: this is a
+      standalone CLI with no ApplicationContext, so pulling in Spring Boot's logging
+      starter would add Logback + spring-core for no benefit.
+    -->
+
     <parent>
-        <groupId>org.wildfly.a2a</groupId>
-        <artifactId>a2a-jakarta-examples-parent</artifactId>
+        <groupId>org.a2a.spring</groupId>
+        <artifactId>a2a-spring-examples-parent</artifactId>
         <version>1.0.0.Final-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>a2a-jakarta-example-simple-client</artifactId>
-
+    <artifactId>a2a-spring-example-simple-client</artifactId>
     <packaging>jar</packaging>
-
-    <name>WildFly Extras - A2A Jakarta - Examples - Simple Client</name>
-    <description>Java SDK for the Agent2Agent Protocol (A2A) - SDK - Jakarta - TCK - WildFly Jar</description>
-
-    <properties>
-        <!--
-            Property to ensure that the default build does not provision a WildFly server.
-            Each profile will set this to 'package' and further configure the plugin.
-        -->
-        <wildfly.maven.plugin.phase>none</wildfly.maven.plugin.phase>
-    </properties>
+    <name>A2A Spring :: Examples :: Simple :: Client</name>
 
     <dependencies>
         <dependency>
@@ -40,8 +47,6 @@
             <groupId>org.a2aproject.sdk</groupId>
             <artifactId>a2a-java-sdk-client-transport-rest</artifactId>
         </dependency>
-
-        <!-- Dependencies needed for gRPC -->
         <dependency>
             <groupId>org.a2aproject.sdk</groupId>
             <artifactId>a2a-java-sdk-client-transport-grpc</artifactId>
@@ -54,11 +59,9 @@
             <groupId>com.google.guava</groupId>
             <artifactId>failureaccess</artifactId>
         </dependency>
-        <!-- SLF4J implementation for gRPC logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>2.0.17</version>
         </dependency>
     </dependencies>
 
@@ -68,7 +71,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>org.wildfly.a2a.jakarta.examples.simple.client.SimpleExampleClient</mainClass>
+                    <mainClass>org.a2a.spring.examples.simple.client.SimpleExampleClient</mainClass>
                 </configuration>
             </plugin>
         </plugins>
@@ -92,6 +95,7 @@
                 </plugins>
             </build>
         </profile>
+
         <profile>
             <id>run-jsonrpc</id>
             <build>
@@ -109,6 +113,7 @@
                 </plugins>
             </build>
         </profile>
+
         <profile>
             <id>run-rest</id>
             <build>

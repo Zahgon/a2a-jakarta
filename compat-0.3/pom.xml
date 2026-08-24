@@ -1,26 +1,36 @@
-<?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright The A2A Spring Authors
+  ~ SPDX-License-Identifier: Apache-2.0
+  -->
+<!--
+  Migrated from a2a-jakarta/compat-0.3/pom.xml (org.wildfly.a2a:a2a-jakarta-compat-0.3-parent).
+
+  The source aggregator had a fourth module, 'tck', which packaged a WAR for the
+  A2A Technology Compatibility Kit and provisioned a WildFly server to run it under
+  Arquillian. That harness is container-specific and has no Spring equivalent, so it
+  is not carried over - see MIGRATION.md for the rationale and the replacement.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.wildfly.a2a</groupId>
-        <artifactId>a2a-jakarta-parent</artifactId>
+        <groupId>org.a2a.spring</groupId>
+        <artifactId>a2a-spring-parent</artifactId>
         <version>1.0.0.Final-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>a2a-jakarta-compat-0.3-parent</artifactId>
-
+    <artifactId>a2a-spring-compat-0.3-parent</artifactId>
     <packaging>pom</packaging>
-
-    <name>WildFly Extras - A2A Jakarta - v0.3 Compat - Parent</name>
-    <description>Jakarta SDK for the Agent2Agent Protocol (A2A) - v0.3 Backward Compatibility - Parent</description>
+    <name>A2A Spring :: v0.3 Compatibility :: Parent</name>
+    <description>Spring integration for the Agent2Agent Protocol (A2A) - v0.3 backward compatibility</description>
 
     <modules>
-        <module>rest</module>
         <module>jsonrpc</module>
+        <module>rest</module>
         <module>grpc</module>
-        <module>tck</module>
     </modules>
 </project>

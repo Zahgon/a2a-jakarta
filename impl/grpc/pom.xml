@@ -1,53 +1,77 @@
-<?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright The A2A Spring Authors
+  ~ SPDX-License-Identifier: Apache-2.0
+  -->
+<!--
+  Migrated from a2a-jakarta/impl/grpc/pom.xml (org.wildfly.a2a:a2a-jakarta-grpc).
+
+  Runtime mapping:
+    WildFly gRPC subsystem (org.wildfly.grpc:wildfly-grpc-feature-pack, provisioned
+    via galleon at 'preview' stability) -> net.devh:grpc-server-spring-boot-starter.
+
+    Under WildFly the gRPC subsystem scanned the deployment for BindableService and
+    ServerInterceptor implementations and instantiated them REFLECTIVELY, outside CDI
+    - which is precisely why the original code needed the static-bean-cache hand-off
+    in GrpcBeanInitializer/WildFlyGrpcHandler. grpc-spring-boot-starter instead picks
+    up @GrpcService / @GrpcGlobalServerInterceptor beans straight from the Spring
+    ApplicationContext, so ordinary constructor injection works. See SpringGrpcHandler.
+
+  Dependency mapping:
+    jakarta.enterprise.cdi-api (provided) -> spring-context (via starter)
+    jakarta.inject-api         (provided) -> spring-context (via starter)
+    jakarta.annotation-api     (provided) -> jakarta.annotation-api (kept; Spring
+                                             honours @PostConstruct/@PreDestroy and
+                                             Spring Boot 3 ships this API already)
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.wildfly.a2a</groupId>
-        <artifactId>a2a-jakarta-parent</artifactId>
+        <groupId>org.a2a.spring</groupId>
+        <artifactId>a2a-spring-parent</artifactId>
         <version>1.0.0.Final-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>a2a-jakarta-grpc</artifactId>
+    <artifactId>a2a-spring-grpc</artifactId>
     <packaging>jar</packaging>
-
-    <name>WildFly Extras - A2A Jakarta - gRPC</name>
-    <description>Java SDK for the Agent2Agent Protocol (A2A) - SDK - Jakarta - gRPC integration</description>
+    <name>A2A Spring :: gRPC Transport</name>
 
     <dependencies>
-        <!-- A2A spec-grpc dependency -->
         <dependency>
             <groupId>org.a2aproject.sdk</groupId>
             <artifactId>a2a-java-sdk-transport-grpc</artifactId>
             <version>${version.sdk}</version>
         </dependency>
 
-        <!-- Jakarta APIs needed for CDI and annotation support -->
-        <dependency>
-            <groupId>jakarta.annotation</groupId>
-            <artifactId>jakarta.annotation-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.enterprise</groupId>
-            <artifactId>jakarta.enterprise.cdi-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.inject</groupId>
-            <artifactId>jakarta.inject-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- A2A server common for @PublicAgentCard and RequestHandler -->
         <dependency>
             <groupId>org.a2aproject.sdk</groupId>
             <artifactId>a2a-java-sdk-server-common</artifactId>
             <version>${version.sdk}</version>
-            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>
